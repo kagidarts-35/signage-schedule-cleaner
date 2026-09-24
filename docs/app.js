@@ -43,6 +43,33 @@ function textOf(value) {
   return value == null ? '' : String(value);
 }
 
+function columnNumber(label) {
+  return [...label].reduce((number, letter) => number * 26 + letter.charCodeAt(0) - 64, 0);
+}
+
+function columnLabel(number) {
+  let label = '';
+  while (number > 0) {
+    number -= 1;
+    label = String.fromCharCode(65 + (number % 26)) + label;
+    number = Math.floor(number / 26);
+  }
+  return label;
+}
+
+function parseRange(range) {
+  const match = range.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+  return match ? {
+    minColumn: columnNumber(match[1]), minRow: Number(match[2]),
+    maxColumn: columnNumber(match[3]), maxRow: Number(match[4])
+  } : null;
+}
+
+function remapColumn(oldColumn, deletedColumns) {
+  if (deletedColumns.includes(oldColumn)) return null;
+  return oldColumn - deletedColumns.filter((column) => column < oldColumn).length;
+}
+
 processButton.addEventListener('click', async () => {
   if (!selectedFile) return;
   processButton.disabled = true;
@@ -58,11 +85,13 @@ processButton.addEventListener('click', async () => {
     workbook.eachSheet((sheet) => {
       const deleteColumns = [];
       let programColumn = null;
+      let period = null;
       for (let rowNumber = 1; rowNumber <= Math.min(sheet.rowCount, 15); rowNumber += 1) {
         sheet.getRow(rowNumber).eachCell({ includeEmpty: false }, (cell, columnNumber) => {
           const text = textOf(cell.value).trim();
           if (deleteHeaders.includes(text)) deleteColumns.push(columnNumber);
           if (text.includes('会社名・番組名')) programColumn = columnNumber;
+          if (rowNumber <= 2 && /\d{4}.*[／/.\-].*\d/.test(text)) period = text;
         });
       }
       if (programColumn !== null) {
@@ -74,10 +103,31 @@ processButton.addEventListener('click', async () => {
           }
         }
       }
-      [...new Set(deleteColumns)].sort((a, b) => b - a).forEach((column) => {
+      const uniqueDeleted = [...new Set(deleteColumns)].sort((a, b) => a - b);
+      const merges = [...(sheet.model.merges || [])];
+      merges.forEach((range) => sheet.unMergeCells(range));
+      [...uniqueDeleted].sort((a, b) => b - a).forEach((column) => {
         sheet.spliceColumns(column, 1);
         deletedCount += 1;
       });
+      merges.forEach((range) => {
+        const parsed = parseRange(range);
+        if (!parsed) return;
+        const remainingColumns = [];
+        for (let column = parsed.minColumn; column <= parsed.maxColumn; column += 1) {
+          const mapped = remapColumn(column, uniqueDeleted);
+          if (mapped !== null) remainingColumns.push(mapped);
+        }
+        if (!remainingColumns.length) return;
+        const first = Math.min(...remainingColumns);
+        const last = Math.max(...remainingColumns);
+        if (first !== last || parsed.minRow !== parsed.maxRow) {
+          sheet.mergeCells(`${columnLabel(first)}${parsed.minRow}:${columnLabel(last)}${parsed.maxRow}`);
+        }
+      });
+      if (period && !sheet.getCell(2, sheet.columnCount).value) {
+        sheet.getCell(2, sheet.columnCount).value = period;
+      }
       for (let row = 1; row <= sheet.rowCount; row += 1) {
         for (let column = 1; column <= sheet.columnCount; column += 1) {
           const cell = sheet.getCell(row, column);
