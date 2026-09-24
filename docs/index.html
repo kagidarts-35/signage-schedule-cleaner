@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="description" content="サイネージ番組表をブラウザ内で一括修正します">
+  <title>番組表クリーン</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><span class="logo">✓</span>番組表クリーン</div>
+    <span class="badge">ブラウザ内で処理</span>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="eyebrow">SIGNAGE SCHEDULE TOOL</p>
+      <h1>番組表を、送れる状態に。</h1>
+      <p>管理会社から届いたExcelを選ぶだけ。毎週の決まった修正をまとめて行い、クライアント用ファイルを作成します。</p>
+    </section>
+
+    <section class="workspace">
+      <div class="main-panel">
+        <div class="step"><span>01</span><div><h2>Excelを選択</h2><small>.xlsx、最大30MB</small></div></div>
+        <div id="dropzone" class="dropzone" tabindex="0" role="button">
+          <input id="file" type="file" accept=".xlsx" hidden>
+          <span class="file-icon">X</span>
+          <strong id="file-name">ここにExcelをドロップ</strong>
+          <small id="file-help">またはクリックしてファイルを選択</small>
+        </div>
+        <p id="error" class="error" role="alert" hidden></p>
+        <button id="process" disabled>番組表を修正する <span>→</span></button>
+        <div id="result" class="result" aria-live="polite" hidden>
+          <span class="done">✓</span>
+          <div><strong>修正が完了しました</strong><p id="summary"></p></div>
+          <a id="download" download>ダウンロード</a>
+        </div>
+      </div>
+
+      <aside>
+        <p class="aside-title">自動修正の内容</p>
+        <ol>
+          <li><span>1</span><div><strong>管理用の列を削除</strong><p>「担当」「終了日」「備考」</p></div></li>
+          <li><span>2</span><div><strong>管理用の文言を削除</strong><p>会社名・番組名から「グレイド枠」を除去</p></div></li>
+          <li><span>3</span><div><strong>背景色を統一</strong><p>すべて白色に変更</p></div></li>
+        </ol>
+        <div class="privacy"><b>●</b><p><strong>ファイルは外部送信されません</strong><br>処理はお使いのブラウザ内だけで行われます。</p></div>
+      </aside>
+    </section>
+  </main>
+
+  <footer>元のExcelは変更されません。修正後は別ファイルとして保存されます。</footer>
+  <script src="./vendor/exceljs.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
