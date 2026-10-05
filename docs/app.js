@@ -98,13 +98,27 @@ processButton.addEventListener('click', async () => {
         for (let rowNumber = 4; rowNumber <= sheet.rowCount; rowNumber += 1) {
           const cell = sheet.getCell(rowNumber, programColumn);
           if (typeof cell.value === 'string' && cell.value.includes('グレイド枠')) {
-            cell.value = cell.value.replaceAll('グレイド枠', '');
+            cell.value = cell.value.replace(/グレイド枠[\s\u3000]*/gu, '').trimStart();
+            cell.alignment = { ...cell.alignment, horizontal: 'left', indent: 0 };
             replacements += 1;
           }
         }
       }
       const uniqueDeleted = [...new Set(deleteColumns)].sort((a, b) => a - b);
       const merges = [...(sheet.model.merges || [])];
+      // Unmerging discards slave-cell styles, including bottom borders. Keep each
+      // surviving cell's own style before either unmerging or moving columns.
+      const styles = [];
+      const originalRowCount = sheet.rowCount;
+      const originalColumnCount = sheet.columnCount;
+      for (let rowNumber = 1; rowNumber <= originalRowCount; rowNumber += 1) {
+        for (let column = 1; column <= originalColumnCount; column += 1) {
+          const cell = sheet.getCell(rowNumber, column);
+          const mapped = remapColumn(column, uniqueDeleted);
+          if (mapped !== null) styles.push({ row: rowNumber, column: mapped,
+            style: structuredClone(cell.style) });
+        }
+      }
       merges.forEach((range) => sheet.unMergeCells(range));
       [...uniqueDeleted].sort((a, b) => b - a).forEach((column) => {
         sheet.spliceColumns(column, 1);
@@ -124,6 +138,9 @@ processButton.addEventListener('click', async () => {
         if (first !== last || parsed.minRow !== parsed.maxRow) {
           sheet.mergeCells(`${columnLabel(first)}${parsed.minRow}:${columnLabel(last)}${parsed.maxRow}`);
         }
+      });
+      styles.forEach(({ row, column, style }) => {
+        sheet.getCell(row, column).style = style;
       });
       if (period && !sheet.getCell(2, sheet.columnCount).value) {
         sheet.getCell(2, sheet.columnCount).value = period;
